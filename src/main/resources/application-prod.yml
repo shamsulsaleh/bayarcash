@@ -1,0 +1,13 @@
+server:
+  port: 8091
+
+spring:
+  application:
+    name: bayarcash
+
+app:
+  bayarcash:
+    base-url: https://api.webimpian.support/bayarcash
+    personal-access-token: your_personal_access_token
+    secret-key: your_secret_key
+    portal-key: your_portal_key
