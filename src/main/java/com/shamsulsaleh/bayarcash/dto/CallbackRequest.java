@@ -3,6 +3,7 @@ import lombok.Data;
 
 @Data
 public class CallbackRequest {
+
     private String transactionId;    // Unique ID of the transaction
     private String status;           // Status of the transaction (e.g., "success", "failed")
     private Double amount;           // Amount of the transaction
