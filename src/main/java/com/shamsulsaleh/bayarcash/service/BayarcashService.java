@@ -1,5 +1,5 @@
 package com.shamsulsaleh.bayarcash.service;
-import java.math.BigInteger;
+
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
@@ -11,13 +11,6 @@ import java.util.TreeMap;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
-import org.bouncycastle.crypto.Digest;
-import org.bouncycastle.crypto.digests.MD5Digest;
-import org.bouncycastle.crypto.digests.SHA256Digest;
-import org.bouncycastle.crypto.digests.SHA384Digest;
-import org.bouncycastle.crypto.digests.SHA512Digest;
-import org.bouncycastle.crypto.macs.HMac;
-import org.bouncycastle.crypto.params.KeyParameter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -35,14 +28,14 @@ import com.shamsulsaleh.bayarcash.feign.BayarcashClient;
 @Service
 public class BayarcashService {
 
-	private Logger logger = LoggerFactory.getLogger(BayarcashService.class);
-	
+    private Logger logger = LoggerFactory.getLogger(BayarcashService.class);
+
     @Value("${app.bayarcash.personal-access-token}")
     private String personalAccessToken;
-    
+
     @Value("${app.bayarcash.portal-key}")
     private String portalKey;
-    
+
     @Value("${app.bayarcash.secret-key}")
     private String secretKey;
 
@@ -53,7 +46,7 @@ public class BayarcashService {
     }
 
     public PaymentIntentPostResponse createPaymentIntent(PaymentIntentPostRequest request) {
-    	request.setPortalKey(portalKey);
+        request.setPortalKey(portalKey);
         request.setChecksum(generateChecksum(request)); // Implement checksum generation logic
         return bayarcashClient.createPaymentIntent("Bearer " + personalAccessToken, request);
     }
@@ -77,56 +70,63 @@ public class BayarcashService {
     public List<BankResponse> getDuitnowBanks() {
         return bayarcashClient.getDuitnowBanks("Bearer " + personalAccessToken);
     }
-    
+
     /**
      * https://api.webimpian.support/bayarcash/checksum/checksum-validation
+     * 
      * @param request
      * @return
      */
     private String prepareDataForChecksum(PaymentIntentPostRequest request) {
-        // Concatenate fields in a specific order (adjust based on Bayarcash's requirements)
-    	//add into object (key,value), sort by key and implode with "|"
-    	Map<String, Object> data = new HashMap<>();
-    	data.put("payment_channel", request.getPaymentChannel());
-    	data.put("order_number", request.getOrderNumber());
-    	data.put("amount", request.getAmount());
-    	data.put("payer_name", request.getPayerName());
-    	data.put("payer_email", request.getPayerEmail());
+        // Concatenate fields in a specific order (adjust based on Bayarcash's
+        // requirements)
+        // add into object (key,value), sort by key and implode with "|"
+        Map<String, Object> data = new HashMap<>();
+        data.put("payment_channel", request.getPaymentChannel());
+        // data.put("portal_key", request.getPortalKey());
+        data.put("order_number", request.getOrderNumber());
+        data.put("amount", request.getAmount());
+        data.put("payer_name", request.getPayerName());
+        data.put("payer_email", request.getPayerEmail());
+        // data.put("payer_telephone_number", request.getPayerTelephoneNumber());
+        // data.put("return_url", request.getReturnUrl());
+        // data.put("callback_url", request.getCallbackUrl());
 
-    	// Sort the data by key
-    	Map<String, Object> sortedData = new TreeMap<>(data);
-    	
-    	// Concatenate the sorted data
-    	StringBuilder concatenatedData = new StringBuilder();
-    	for (Map.Entry<String, Object> entry : sortedData.entrySet()) {
-    		//implode value with "|" delimiter
-    		concatenatedData.append(entry.getValue()).append("|");
-    		
-    		//implode key and value with "|" delimiter
-//    		concatenatedData.append(entry.getKey()).append("|").append(entry.getValue()).append("|");
-    	}
-    	// Remove the trailing delimiter
-    	concatenatedData.deleteCharAt(concatenatedData.length() - 1);
-    	logger.info("concatenatedData: " + concatenatedData.toString());
-    	return concatenatedData.toString();
-    	
-    	
-//        return request.getPaymentChannel() + "|" +
-//               request.getOrderNumber() + "|" +
-//               request.getAmount() + "|" +
-//               request.getPayerName() + "|" +
-//               request.getPayerEmail();
+        // Sort the data by key
+        Map<String, Object> sortedData = new TreeMap<>(data);
+
+        // Concatenate the sorted data
+        StringBuilder concatenatedData = new StringBuilder();
+        for (Map.Entry<String, Object> entry : sortedData.entrySet()) {
+            // implode value with "|" delimiter
+            String val = String.valueOf(entry.getValue());
+            concatenatedData.append(val.trim()).append("|");
+
+            // implode key and value with "|" delimiter
+            // concatenatedData.append(entry.getKey()).append("|").append(entry.getValue()).append("|");
+        }
+        // Remove the trailing delimiter
+        concatenatedData.deleteCharAt(concatenatedData.length() - 1);
+        logger.info("concatenatedData: " + concatenatedData.toString());
+        return concatenatedData.toString();
+
+        // return request.getPaymentChannel() + "|" +
+        // request.getOrderNumber() + "|" +
+        // request.getAmount() + "|" +
+        // request.getPayerName() + "|" +
+        // request.getPayerEmail();
     }
-    
+
     /**
      * https://api.webimpian.support/bayarcash/checksum/checksum-validation
+     * 
      * @param request
      * @return
      */
     private String generateChecksum(PaymentIntentPostRequest request) {
-    	String data = prepareDataForChecksum(request);
+        String data = prepareDataForChecksum(request);
         try {
-        	Mac sha256_HMAC = Mac.getInstance("HmacSHA256");
+            Mac sha256_HMAC = Mac.getInstance("HmacSHA256");
 
             // Create a SecretKeySpec from the secret key
             SecretKeySpec secretKeySpec = new SecretKeySpec(secretKey.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
@@ -138,25 +138,12 @@ public class BayarcashService {
             byte[] hmacBytes = sha256_HMAC.doFinal(data.getBytes(StandardCharsets.UTF_8));
 
             // Convert the HMAC bytes to a hexadecimal string
-            return new BigInteger(hmacBytes).toString(16);
-		} catch (NoSuchAlgorithmException | InvalidKeyException e) {
-			throw new RuntimeException("Failed to generate checksum", e);
+            return new String(Hex.encode(hmacBytes));
+        } catch (NoSuchAlgorithmException | InvalidKeyException e) {
+            throw new RuntimeException("Failed to generate checksum", e);
         } catch (Exception e) {
             throw new RuntimeException("Failed to generate checksum", e);
         }
     }
-    
-    private String removeTrailingZeros(double number) {
-        // Convert the number to a string
-        String str = Double.toString(number);
 
-        // Remove trailing zeros and the decimal point if necessary
-        if (str.contains(".")) {
-            str = str.replaceAll("0*$", ""); // Remove trailing zeros
-            str = str.replaceAll("\\.$", ""); // Remove trailing decimal point
-        }
-
-        return str;
-    }
-    
 }
